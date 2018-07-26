@@ -31,7 +31,7 @@ class FieldElement:
         # self.prime is what you'll need to mod against
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__((self.num + other.num) % self.prime, self.prime)
 
     def __sub__(self, other):
         if self.prime != other.prime:
@@ -40,7 +40,7 @@ class FieldElement:
         # self.prime is what you'll need to mod against
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__((self.num - other.num) % self.prime, self.prime)
 
     def __mul__(self, other):
         if self.prime != other.prime:
@@ -49,13 +49,14 @@ class FieldElement:
         # self.prime is what you'll need to mod against
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__((self.num * other.num) % self.prime, self.prime)
 
     def __pow__(self, n):
         # Exercise 3.2: remember fermat's little theorem:
         # Exercise 3.2: self.num**(p-1) % p == 1
         # Exercise 3.2: you might want to use % operator on n
-        raise NotImplementedError
+        exponent = n % (self.prime - 1)
+        return self.__class__(pow(self.num, exponent, self.prime), self.prime)
 
     def __truediv__(self, other):
         if self.prime != other.prime:
@@ -68,7 +69,7 @@ class FieldElement:
         # 1/n == pow(n, p-2, p)
         # You need to return an element of the same class
         # use: self.__class__(num, prime)
-        raise NotImplementedError
+        return self.__class__(self.num * pow(other.num, other.prime - 2, self.prime) % self.prime, self.prime)
 
 
 class FieldElementTest(TestCase):
@@ -123,9 +124,13 @@ class Point:
         # Exercise 5.1: x being None and y being None represents the point at infinity
         # Exercise 5.1: Check for that here since the equation below won't make sense
         # Exercise 5.1: with None values for both.
+        if x is None and y is None:
+            return
         # Exercise 4.2: make sure that the elliptic curve equation is satisfied
         # y**2 == x**3 + a*x + b
         # if not, raise a RuntimeError
+        if not self.y ** 2 == self.x ** 3 + self.a * x + self.b:
+            raise RuntimeError
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y \
@@ -146,11 +151,16 @@ class Point:
             raise RuntimeError('Points {}, {} are not on the same curve'.format(self, other))
         # Case 0.0: self is the point at infinity, return other
         # Case 0.1: other is the point at infinity, return self
-
+        if self.x is None:
+            return other
+        elif other.x is None:
+            return self
         # Case 1: self.x == other.x, self.y != other.y
         # Result is point at infinity
         # Remember to return an instance of this class:
         # self.__class__(x, y, a, b)
+        elif self.x == other.x and self.y != other.y:
+            return self.__class__(None, None, self.a, self.b)
  
         # Case 2: self.x != other.x
         # Formula (x3,y3)==(x1,y1)+(x2,y2)
@@ -159,15 +169,33 @@ class Point:
         # y3=s*(x1-x3)-y1
         # Remember to return an instance of this class:
         # self.__class__(x, y, a, b)
+        elif self.x != other.x:
+            y1 = self.y
+            y2 = other.y
+            x1 = self.x
+            x2 = other.x
 
-        # Case 3: self.x == other.x, self.y == other.y
-        # Formula (x3,y3)=(x1,y1)+(x1,y1)
-        # s=(3*x1**2+a)/(2*y1)
-        # x3=s**2-2*x1
-        # y3=s*(x1-x3)-y1
-        # Remember to return an instance of this class:
-        # self.__class__(x, y, a, b)
-        raise NotImplementedError
+            s = (y2-y1)/(x2-x1)
+            x3 = s**2 - x2 - x1
+            y3 = s*(x1-x3)-y1
+            
+            return self.__class__(x3, y3, self.a, self.b)
+        else:
+            # Case 3: self.x == other.x, self.y == other.y
+            # Formula (x3,y3)=(x1,y1)+(x1,y1)
+            # s=(3*x1**2+a)/(2*y1)
+            # x3=s**2-2*x1
+            # y3=s*(x1-x3)-y1
+            # Remember to return an instance of this class:
+            # self.__class__(x, y, a, b)
+            y1 = self.y
+            y2 = other.y
+            x1 = self.x
+            x2 = other.x
+            s = (3*x1**2+self.a)/(2*y1)
+            x3 = s**2 - 2*x1
+            y3 = s*(x1-x3) - y1
+            return self.__class__(x3, y3, self.a, self.b)
 
 
 class PointTest(TestCase):
