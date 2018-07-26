@@ -479,8 +479,12 @@ class S256Point(Point):
         # u = z / s
         # v = r / s
         # u*G + v*P should have as the x coordinate, r
-        raise NotImplementedError
-
+        # finally, uG+vP should have the x-coordinate equal to r
+        u = z * pow(sig.s, N-2, N) % N
+        v = sig.r * pow(sig.s, N-2, N) % N
+        # finally, uG+vP should have the x-coordinate equal to r
+        return (u*G + v*self).x.num == sig.r
+        
     @classmethod
     def parse(self, sec_bin):
         '''returns a Point object from a compressed sec binary (not hex)
@@ -668,6 +672,21 @@ class PrivateKey:
         return '{:x}'.format(self.secret).zfill(64)
 
     def sign(self, z):
+        # TODO - implement
+        # we need a random number k: randint(0, 2**256)
+        k = randint(0, 2**256)
+        # r is the x coordinate of the resulting point k*G
+        r = (k*G).x.num
+        # remember 1/k = pow(k, N-2, N)
+        k_inv = pow(k, N-2, N)
+        # s = (z+r*secret) / k
+        s = (z + r*self.secret) * k_inv % N
+        if s > N/2:
+            s = N - s
+        # return an instance of Signature:
+        # Signature(r, s)
+        return Signature(r, s)
+    
         # we need a random number k: randint(0, 2**256)
         # r is the x coordinate of the resulting point k*G
         # remember 1/k = pow(k, N-2, N)
@@ -681,7 +700,16 @@ class PrivateKey:
         # prepend b'\xef' on testnet, b'\x80' on mainnet
         # append b'\x01' if compressed
         # encode_base58_checksum the whole thing
-        raise NotImplementedError
+        # get the private key in 32-byte big-endian: num.to_bytes(32, 'big')
+        private_key = self.secret.to_bytes(32, 'big')
+        # prepend b'\x80' for mainnet, b'\xef' for testnet
+        private_key = (b'\x80' if not testnet else b'\xef') + private_key
+        # append b'\x01' for compressed
+        private_key = private_key + (b'\x01' if compressed else b'')
+        # base58 the whole thing with checksum
+        __wif__ = encode_base58_checksum(private_key)
+        # print the wif
+        return __wif__
 
 
 class PrivateKeyTest(TestCase):
